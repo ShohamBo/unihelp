@@ -1,0 +1,13 @@
+FROM mcr.microsoft.com/playwright/python:v1.44.0-jammy
+
+WORKDIR /app
+
+RUN pip install uv
+
+COPY scrapers/pyproject.toml .
+RUN uv pip install --system -e .
+
+RUN playwright install chromium
+
+COPY scrapers/ .
+COPY .env .env

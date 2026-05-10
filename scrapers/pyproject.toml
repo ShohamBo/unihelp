@@ -1,0 +1,21 @@
+[project]
+name = "maslul-scrapers"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.9",
+    "beautifulsoup4>=4.12",
+    "fake-useragent>=1.5",
+    "praw>=7.7",
+    "playwright>=1.44",
+    "celery>=5.3",
+    "redis>=5.0",
+    "pyyaml>=6.0",
+    "rapidfuzz>=3.6",
+    "pdfplumber>=0.11",
+    "python-decouple>=3.8",
+    "anthropic>=0.30",
+]
+
+[tool.ruff]
+line-length = 120

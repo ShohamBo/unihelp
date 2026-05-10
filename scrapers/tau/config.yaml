@@ -1,0 +1,5 @@
+base_url: "https://www.tau.ac.il"
+rate_limit: 0.17
+directories:
+  - "/he/faculties"
+retries: 3

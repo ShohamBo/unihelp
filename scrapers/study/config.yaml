@@ -1,0 +1,5 @@
+base_url: "https://www.study.co.il"
+rate_limit: 0.5
+directories:
+  - "/"
+retries: 3

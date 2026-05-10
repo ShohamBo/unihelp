@@ -1,0 +1,36 @@
+[project]
+name = "maslul-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.0",
+    "djangorestframework>=3.15",
+    "psycopg[binary]>=3.1",
+    "pgvector>=0.3",
+    "redis>=5.0",
+    "celery>=5.3",
+    "django-celery-beat>=2.6",
+    "python-decouple>=3.8",
+    "dj-database-url>=2.1",
+    "django-cors-headers>=4.3",
+    "rapidfuzz>=3.6",
+    "anthropic>=0.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4",
+    "black>=24",
+    "mypy>=1.9",
+    "django-stubs>=5.0",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.black]
+line-length = 120
+
+[tool.mypy]
+ignore_missing_imports = true
+warn_unused_ignores = true

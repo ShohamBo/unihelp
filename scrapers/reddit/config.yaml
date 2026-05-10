@@ -1,0 +1,4 @@
+base_url: ""
+rate_limit: 1.0
+directories: []
+retries: 1

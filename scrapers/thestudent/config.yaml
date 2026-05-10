@@ -1,0 +1,5 @@
+base_url: "https://www.thestudent.co.il"
+rate_limit: 0.25
+directories:
+  - "/Degrees/"
+retries: 3
