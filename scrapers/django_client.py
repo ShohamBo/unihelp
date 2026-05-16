@@ -1,13 +1,13 @@
 import asyncio
-import logging
 import os
 from dataclasses import asdict
 
 import aiohttp
 
+from .common.logger_manager import scraper_logger
 from .models import Degree, Course, Review, ScraperResult
 
-logger = logging.getLogger("maslul.scrapers.django_client")
+logger = scraper_logger.get_child("django_client")
 
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000/api")
 API_TOKEN = os.getenv("BACKEND_API_TOKEN", "")

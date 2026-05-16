@@ -71,6 +71,10 @@ services:
     volumes:
       - ../backend:/app
 
+  tor:
+    image: osminogin/tor-simple
+    restart: unless-stopped
+
   scraper_worker:
     build:
       context: ..
@@ -81,9 +85,11 @@ services:
     environment:
       - BACKEND_API_URL=http://backend:8000/api
       - REDIS_URL=redis://redis:6379/0
+      - PROXY_URL=socks5h://tor:9050
     depends_on:
       - redis
       - backend
+      - tor
     volumes:
       - ../scrapers:/app
 

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -9,6 +8,7 @@ from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
 from .common.async_request_client import AsyncRequestClient, ClientErrorException, RequestType
+from .common.logger_manager import scraper_logger
 from .models import ReviewSnippetData, ProgramData
 
 BS4_PARSER = "html.parser"
@@ -39,7 +39,7 @@ class BaseScraper(ABC):
             cls.config_dir = Path(".")
 
     def __init__(self, proxy: str | None = None):
-        self.logger = logging.getLogger(f"maslul.scrapers.{self.source_slug}")
+        self.logger = scraper_logger.get_child(self.source_slug)
         self._ua = UserAgent()
         self._current_ua = self._ua.random
         rate_per_second = self.rate_limit_per_minute / 60.0

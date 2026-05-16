@@ -1,8 +1,9 @@
 import itertools
-import logging
 import os
 
-logger = logging.getLogger("maslul.scrapers.proxy")
+from .common.logger_manager import scraper_logger
+
+logger = scraper_logger.get_child("proxy")
 
 
 class ProxyRotator:
@@ -27,3 +28,8 @@ class ProxyRotator:
 
 
 proxy_rotator = ProxyRotator()
+
+
+def get_default_proxy() -> str | None:
+    """Return the configured default proxy URL (any scheme: http, socks5h, etc.)."""
+    return os.getenv("PROXY_URL") or None

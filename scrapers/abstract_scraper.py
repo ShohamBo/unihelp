@@ -1,6 +1,5 @@
 import asyncio
 import hashlib
-import logging
 import re
 import sys
 from abc import ABC, abstractmethod
@@ -14,6 +13,8 @@ from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
 from .common.async_request_client import AsyncRequestClient, ClientErrorException, RequestType
+from .common.logger_manager import scraper_logger
+from .proxy import get_default_proxy
 from .consts import (
     SCRAPER_CONFIG_FILENAME, BS4_HTML_PARSER, TRANSLATION_MODEL,
     HEBREW_CHAR_RATIO_THRESHOLD, DEGREE_LEVEL_NORMALIZER,
@@ -49,13 +50,13 @@ class AbstractScraper(ABC):
             cls.config_dir = Path(".")
 
     def __init__(self, proxy: str | None = None):
-        self.logger = logging.getLogger(f"maslul.scrapers.{self.source_slug}")
+        self.logger = scraper_logger.get_child(self.source_slug)
         self._ua = UserAgent()
         self._anthropic = AsyncAnthropic()
         self.scraper_config = self.load_scraper_config()
         self.request_client = AsyncRequestClient(
             rate_limit=self.scraper_config.rate_limit,
-            proxy=proxy or self.scraper_config.proxy,
+            proxy=proxy or self.scraper_config.proxy or get_default_proxy(),
             logger=self.logger,
             retries=self.scraper_config.retries,
         )

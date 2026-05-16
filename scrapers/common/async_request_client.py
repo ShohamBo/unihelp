@@ -4,10 +4,11 @@ from enum import StrEnum
 from typing import Callable, AsyncContextManager
 
 from .token_bucket import TokenBucket
+from .logger_manager import scraper_logger
 
 AiohttpRequestFunc = Callable[..., AsyncContextManager[aiohttp.ClientResponse]]
 
-default_logger = logging.getLogger("maslul.scrapers.http")
+default_logger = scraper_logger.get_child("http")
 
 
 class RequestType(StrEnum):
@@ -51,11 +52,15 @@ class AsyncRequestClient:
         assert rate_limit >= 0, f"invalid rate limit {rate_limit}"
         assert retries >= 0, f"invalid retry count {retries}"
 
-        self.client = aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(force_close=True),
-            trust_env=True,
-        )
-        self._proxy = proxy
+        if proxy and proxy.startswith(("socks4://", "socks5://", "socks5h://")):
+            from aiohttp_socks import ProxyConnector
+            connector = ProxyConnector.from_url(proxy, force_close=True)
+            self._proxy = None  # connector handles routing; no per-request proxy needed
+        else:
+            connector = aiohttp.TCPConnector(force_close=True)
+            self._proxy = proxy
+
+        self.client = aiohttp.ClientSession(connector=connector, trust_env=True)
         self.token_bucket = TokenBucket(tokens_per_second=rate_limit, burst=max(1, int(rate_limit // 2)))
         self.retries = retries
         self.logger = logger

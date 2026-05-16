@@ -1,10 +1,11 @@
 import asyncio
 import importlib
-import logging
 
 from celery import shared_task
 
-logger = logging.getLogger("maslul.scrapers.tasks")
+from .common.logger_manager import scraper_logger
+
+logger = scraper_logger.get_child("tasks")
 
 
 def _load_class(class_path: str):
