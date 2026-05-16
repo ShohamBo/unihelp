@@ -31,3 +31,29 @@ def upsert_by_fields_conditional(
 def enable_pgvector_extension():
     with connection.cursor() as cursor:
         cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+
+
+def bulk_upsert(
+    model_class,  # django.db.models.Model subclass
+    objects: list[Any],
+    unique_fields: list[str],
+    update_fields: list[str],
+) -> tuple[int, int]:
+    """
+    Atomic PostgreSQL ON CONFLICT upsert for a list of model instances.
+    Returns (created_count, updated_count). Requires Django 4.1+ and PostgreSQL.
+    Passing empty update_fields raises ValueError to prevent silent DO NOTHING on conflict.
+    """
+    if not objects:
+        return 0, 0
+    if not unique_fields or not update_fields:
+        raise ValueError("unique_fields and update_fields must both be non-empty")
+    result = model_class.objects.bulk_create(
+        objects,
+        update_conflicts=True,
+        unique_fields=unique_fields,
+        update_fields=update_fields,
+    )
+    created = sum(1 for obj in result if obj._state.adding)
+    updated = len(result) - created
+    return created, updated
