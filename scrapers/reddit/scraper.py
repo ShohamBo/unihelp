@@ -89,7 +89,7 @@ class RedditScraper(AbstractScraper):
 
     async def _scrape(self) -> ScraperResult:
         result = ScraperResult(source_slug=self.source_slug)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         seen_ids: set[str] = set()
         self.logger.info(
             f"Reddit: {len(TARGET_SUBREDDITS)} subreddits × {len(SEARCH_QUERIES)} queries"

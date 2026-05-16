@@ -83,6 +83,7 @@ class AsyncRequestClient:
             await self.client.__aexit__(exc_type, exc_val, exc_tb)
 
     def _get_request_func(self, request_type: RequestType) -> AiohttpRequestFunc:
+        assert self.client is not None, "AsyncRequestClient must be used as an async context manager"
         match request_type:
             case RequestType.GET:
                 return self.client.get

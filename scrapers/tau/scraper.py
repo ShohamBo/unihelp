@@ -48,7 +48,6 @@ class TauScraper(AbstractScraper):
             if not name_he:
                 continue
 
-            name_he = await self.translate_to_hebrew(name_he)
             slug = self._slugify(name_he)
             if not slug:
                 continue

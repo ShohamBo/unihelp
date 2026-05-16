@@ -45,7 +45,6 @@ class TheStudentScraper(AbstractScraper):
             if len(raw_text) < MIN_REVIEW_LENGTH:
                 continue
 
-            raw_text = await self.translate_to_hebrew(raw_text)
             date_str = self._extract_text_by_selectors(review_el, REVIEW_DATE_SELECTORS, attr="datetime")
             ratings = self._extract_ratings(review_el)
 

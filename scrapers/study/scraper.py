@@ -37,9 +37,7 @@ class StudyScraper(AbstractScraper):
     async def parse_page(self, ctx: PageContext) -> list[Degree | Course | Review]:
         soup: BeautifulSoup = ctx.html_soup
 
-        program_name = await self.translate_to_hebrew(
-            self._extract_text_by_selectors(soup, PROGRAM_NAME_SELECTORS)
-        )
+        program_name = self._extract_text_by_selectors(soup, PROGRAM_NAME_SELECTORS)
         degree_id = self._slugify(program_name) or self._url_to_slug(ctx.url)
 
         institution_text = self._extract_text_by_selectors(soup, INSTITUTION_NAME_SELECTORS)
@@ -54,7 +52,6 @@ class StudyScraper(AbstractScraper):
             if len(raw_text) < MIN_REVIEW_LENGTH:
                 continue
 
-            raw_text = await self.translate_to_hebrew(raw_text)
             date_str = self._extract_text_by_selectors(review_el, REVIEW_DATE_SELECTORS, attr="datetime")
 
             reviews.append(Review(

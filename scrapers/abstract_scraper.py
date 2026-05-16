@@ -8,17 +8,13 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 import yaml
-from anthropic import AsyncAnthropic
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
 from .common.async_request_client import AsyncRequestClient, ClientErrorException, RequestType
 from .common.logger_manager import scraper_logger
 from .proxy import get_default_proxy
-from .consts import (
-    SCRAPER_CONFIG_FILENAME, BS4_HTML_PARSER, TRANSLATION_MODEL,
-    HEBREW_CHAR_RATIO_THRESHOLD, DEGREE_LEVEL_NORMALIZER,
-)
+from .consts import SCRAPER_CONFIG_FILENAME, BS4_HTML_PARSER, DEGREE_LEVEL_NORMALIZER
 from .models import ScraperConfig, PageContext, ScraperResult, Degree, Course, Review
 
 
@@ -52,7 +48,6 @@ class AbstractScraper(ABC):
     def __init__(self, proxy: str | None = None):
         self.logger = scraper_logger.get_child(self.source_slug)
         self._ua = UserAgent()
-        self._anthropic = AsyncAnthropic()
         self.scraper_config = self.load_scraper_config()
         self.request_client = AsyncRequestClient(
             rate_limit=self.scraper_config.rate_limit,
@@ -89,33 +84,6 @@ class AbstractScraper(ABC):
             url, request_type=RequestType.GET, headers=self.request_headers
         )
         return self.soupify(html)
-
-    # -------------------------------------------------- Hebrew translation
-
-    @staticmethod
-    def _is_hebrew(text: str) -> bool:
-        if not text:
-            return False
-        he_chars = sum(1 for c in text if "א" <= c <= "ת")
-        return (he_chars / max(len(text), 1)) >= HEBREW_CHAR_RATIO_THRESHOLD
-
-    async def translate_to_hebrew(self, text: str) -> str:
-        """Translate to Hebrew via Claude Haiku. Returns as-is if already Hebrew or empty."""
-        if not text or self._is_hebrew(text):
-            return text
-        try:
-            msg = await self._anthropic.messages.create(
-                model=TRANSLATION_MODEL,
-                max_tokens=512,
-                messages=[{
-                    "role": "user",
-                    "content": f"Translate the following to Hebrew. Return only the translation:\n\n{text}",
-                }],
-            )
-            return msg.content[0].text.strip()
-        except Exception as e:
-            self.logger.warning(f"Translation failed, returning original: {e}")
-            return text
 
     # ----------------------------------------------- shared static utilities
 

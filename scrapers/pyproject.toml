@@ -15,7 +15,6 @@ dependencies = [
     "rapidfuzz>=3.6",
     "pdfplumber>=0.11",
     "python-decouple>=3.8",
-    "anthropic>=0.30",
 ]
 
 [tool.ruff]
