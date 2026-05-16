@@ -9,4 +9,5 @@ urlpatterns = [
     path("api/reviews/", include("reviews.urls")),
     path("api/institutions/", include("institutions.urls")),
     path("api/leads/", include("leads.urls")),
+    path("social/", include("social_django.urls", namespace="social")),
 ]

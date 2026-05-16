@@ -79,7 +79,7 @@ services:
     build:
       context: ..
       dockerfile: infra/Dockerfile.scrapers
-    command: celery -A celery_app worker --loglevel=info -Q scrapers
+    command: celery -A scrapers.celery_app worker --loglevel=info -Q scrapers
     env_file:
       - ../.env
     environment:
@@ -91,7 +91,7 @@ services:
       - backend
       - tor
     volumes:
-      - ../scrapers:/app
+      - ../scrapers:/app/scrapers
 
   backup:
     build:

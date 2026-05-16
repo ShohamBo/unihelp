@@ -68,62 +68,61 @@ class ProgramBulkView(APIView):
         if not isinstance(items, list):
             return Response({"error": "expected a JSON array"}, status=400)
 
-        created_count = updated_count = skipped_count = 0
+        from core.db_utils import bulk_upsert
 
+        # Pre-fetch all referenced institutions in one query
+        slugs = {i.get("institution_slug", "") for i in items if i.get("institution_slug")}
+        institutions = {inst.slug: inst for inst in Institution.objects.filter(slug__in=slugs)}
+
+        objs = []
+        skipped = 0
         for item in items:
-            try:
-                outcome = self._upsert(item)
-                if outcome == "created":
-                    created_count += 1
-                elif outcome == "updated":
-                    updated_count += 1
-                else:
-                    skipped_count += 1
-            except Exception:
-                logger.exception(f"Failed to upsert program: {item.get('slug')}")
-                skipped_count += 1
+            inst = institutions.get(item.get("institution_slug", ""))
+            if not inst:
+                logger.warning(f"Unknown institution_slug: {item.get('institution_slug')!r} — skipping")
+                skipped += 1
+                continue
+            slug = item.get("slug", "").strip()
+            if not slug:
+                skipped += 1
+                continue
 
-        return Response({"saved": created_count, "updated": updated_count, "skipped": skipped_count})
+            faculty = None
+            faculty_slug = item.get("faculty_slug", "").strip()
+            if faculty_slug:
+                faculty, _ = Faculty.objects.get_or_create(
+                    institution=inst,
+                    slug=faculty_slug,
+                    defaults={"name_he": faculty_slug, "name_en": ""},
+                )
 
-    def _upsert(self, item: dict) -> str:  # noqa: max-complexity
-        institution_slug = item.get("institution_slug", "")
-        try:
-            institution = Institution.objects.get(slug=institution_slug)
-        except Institution.DoesNotExist:
-            logger.warning(f"Unknown institution_slug: {institution_slug!r} — skipping")
-            return "skipped"
+            objs.append(Program(
+                institution=inst,
+                slug=slug,
+                faculty=faculty,
+                name_he=item.get("name_he", ""),
+                name_en=item.get("name_en", ""),
+                degree_level=item.get("degree_level", "ba"),
+                duration_years=item.get("duration_years"),
+                total_credits=item.get("total_credits"),
+                is_dual_major=bool(item.get("is_dual_major", False)),
+                is_extended=bool(item.get("is_extended", False)),
+                description_he=item.get("description_he", ""),
+                canonical_url=item.get("canonical_url", ""),
+                metadata=item.get("metadata", {}),
+            ))
 
-        slug = item.get("slug", "").strip()
-        if not slug:
-            return "skipped"
-
-        faculty = None
-        faculty_slug = item.get("faculty_slug", "").strip()
-        if faculty_slug:
-            faculty, _ = Faculty.objects.get_or_create(
-                institution=institution,
-                slug=faculty_slug,
-                defaults={"name_he": faculty_slug, "name_en": ""},
-            )
-
-        _, created = upsert_by_fields_conditional(
+        created, updated = bulk_upsert(
             Program,
-            lookup_fields={"institution": institution, "slug": slug},
-            update_fields={
-                "faculty": faculty,
-                "name_he": item.get("name_he", ""),
-                "name_en": item.get("name_en", ""),
-                "degree_level": item.get("degree_level", "ba"),
-                "duration_years": item.get("duration_years"),
-                "total_credits": item.get("total_credits"),
-                "is_dual_major": bool(item.get("is_dual_major", False)),
-                "is_extended": bool(item.get("is_extended", False)),
-                "description_he": item.get("description_he", ""),
-                "canonical_url": item.get("canonical_url", ""),
-                "metadata": item.get("metadata", {}),
-            },
+            objs,
+            unique_fields=["institution", "slug"],
+            update_fields=[
+                "faculty", "name_he", "name_en", "degree_level",
+                "duration_years", "total_credits", "is_dual_major",
+                "is_extended", "description_he", "canonical_url", "metadata",
+            ],
         )
-        return "created" if created else "updated"
+        return Response({"saved": created, "updated": updated, "skipped": skipped})
 
 
 class CourseBulkView(APIView):

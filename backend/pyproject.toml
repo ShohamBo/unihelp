@@ -15,6 +15,7 @@ dependencies = [
     "django-cors-headers>=4.3",
     "rapidfuzz>=3.6",
     "anthropic>=0.28",
+    "social-auth-app-django>=5.4",
 ]
 
 [project.optional-dependencies]

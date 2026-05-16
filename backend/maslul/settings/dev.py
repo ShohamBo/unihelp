@@ -7,7 +7,10 @@ ALLOWED_HOSTS = ["*"]
 
 database_url = config("DATABASE_URL", default=None)
 if database_url:
-    DATABASES["default"] = dj_database_url.parse(database_url)
+    parsed = dj_database_url.parse(database_url)
+    parsed.setdefault("OPTIONS", {})
+    parsed["OPTIONS"].update(DATABASES["default"].get("OPTIONS", {}))
+    DATABASES["default"] = parsed
 
 CORS_ALLOW_ALL_ORIGINS = True
 

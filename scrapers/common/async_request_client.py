@@ -1,6 +1,6 @@
 import logging
 import aiohttp
-from enum import StrEnum
+from enum import Enum
 from typing import Callable, AsyncContextManager
 
 from .token_bucket import TokenBucket
@@ -11,7 +11,7 @@ AiohttpRequestFunc = Callable[..., AsyncContextManager[aiohttp.ClientResponse]]
 default_logger = scraper_logger.get_child("http")
 
 
-class RequestType(StrEnum):
+class RequestType(str, Enum):
     GET = "get"
     POST = "post"
     HEAD = "head"
@@ -52,27 +52,35 @@ class AsyncRequestClient:
         assert rate_limit >= 0, f"invalid rate limit {rate_limit}"
         assert retries >= 0, f"invalid retry count {retries}"
 
-        if proxy and proxy.startswith(("socks4://", "socks5://", "socks5h://")):
-            from aiohttp_socks import ProxyConnector
-            connector = ProxyConnector.from_url(proxy, force_close=True)
-            self._proxy = None  # connector handles routing; no per-request proxy needed
-        else:
-            connector = aiohttp.TCPConnector(force_close=True)
-            self._proxy = proxy
-
-        self.client = aiohttp.ClientSession(connector=connector, trust_env=True)
+        self._raw_proxy = proxy
+        self.client: aiohttp.ClientSession | None = None
         self.token_bucket = TokenBucket(tokens_per_second=rate_limit, burst=max(1, int(rate_limit // 2)))
         self.retries = retries
         self.logger = logger
         self.ignore_http_errors = ignore_http_errors
         self.follow_redirects = follow_redirects
+        self._proxy: str | None = None
+
+    def _build_session(self) -> aiohttp.ClientSession:
+        proxy = self._raw_proxy
+        if proxy and proxy.startswith(("socks4://", "socks5://", "socks5h://")):
+            from aiohttp_socks import ProxyConnector
+            normalized = proxy.replace("socks5h://", "socks5://", 1)
+            connector = ProxyConnector.from_url(normalized, force_close=True)
+            self._proxy = None
+        else:
+            connector = aiohttp.TCPConnector(force_close=True)
+            self._proxy = proxy
+        return aiohttp.ClientSession(connector=connector, trust_env=True)
 
     async def __aenter__(self):
+        self.client = self._build_session()
         await self.client.__aenter__()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.client.__aexit__(exc_type, exc_val, exc_tb)
+        if self.client:
+            await self.client.__aexit__(exc_type, exc_val, exc_tb)
 
     def _get_request_func(self, request_type: RequestType) -> AiohttpRequestFunc:
         match request_type:

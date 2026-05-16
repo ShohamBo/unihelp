@@ -4,10 +4,10 @@ WORKDIR /app
 
 RUN pip install uv
 
-COPY scrapers/pyproject.toml .
-RUN uv pip install --system -e .
+COPY scrapers/pyproject.toml ./scrapers/pyproject.toml
+RUN cd scrapers && uv pip install --system -e .
 
 RUN playwright install chromium
 
-COPY scrapers/ .
+COPY scrapers/ ./scrapers/
 COPY .env .env
