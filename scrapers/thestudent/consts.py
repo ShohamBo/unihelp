@@ -1,10 +1,10 @@
 SOURCE_SLUG = "thestudent"
 BASE_URL = "https://www.thestudent.co.il"
-DEGREES_INDEX = "/Degrees/"
+CATEGORIES_INDEX = "/Categories"
 
 MIN_REVIEW_LENGTH = 30
 
-REVIEW_SELECTORS = [".review-item", ".student-review", "article.review"]
+REVIEW_SELECTORS = [".review-item", ".student-review", "article.review", "div[class*='review']"]
 REVIEW_TEXT_SELECTORS = [".review-text", ".review-body", "p.content", "p"]
 REVIEW_DATE_SELECTORS = ["time", ".review-date", "[class*='date']"]
 REVIEW_AUTHOR_SELECTORS = [".reviewer-name", ".author-name", "[class*='author']"]

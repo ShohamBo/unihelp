@@ -1,0 +1,6 @@
+base_url: "https://www.sce.ac.il"
+rate_limit: 1.0
+directories:
+  - "/academic-units1/beersheva/"
+  - "/academic-units1/ashdod/"
+retries: 3

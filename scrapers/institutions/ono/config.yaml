@@ -1,0 +1,5 @@
+base_url: "https://www.ono.ac.il"
+rate_limit: 0.5
+directories:
+  - "/curriculum/"
+retries: 3

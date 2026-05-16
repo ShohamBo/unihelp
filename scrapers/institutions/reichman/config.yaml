@@ -1,0 +1,5 @@
+base_url: "https://www.runi.ac.il"
+rate_limit: 1.0
+directories:
+  - "/he/schools/"
+retries: 3

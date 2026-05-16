@@ -1,0 +1,16 @@
+base_url: "https://go.tau.ac.il"
+rate_limit: 0.3
+directories:
+  - "/he/exact"
+  - "/he/engineering"
+  - "/he/humanities"
+  - "/he/med"
+  - "/he/life"
+  - "/he/neuroscience"
+  - "/he/education"
+  - "/he/art"
+  - "/he/social-sciences"
+  - "/he/social-work"
+  - "/he/management"
+  - "/he/law"
+retries: 3

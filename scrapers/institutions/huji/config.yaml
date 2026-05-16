@@ -1,0 +1,5 @@
+base_url: "https://info.huji.ac.il"
+rate_limit: 0.4
+directories:
+  - "/courses/first-degree/faculty/all/grid/all"
+retries: 3

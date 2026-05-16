@@ -1,0 +1,4 @@
+base_url: "https://ugportal.technion.ac.il"
+rate_limit: 0.4
+directories: []
+retries: 3

@@ -1,0 +1,5 @@
+base_url: "https://www.biu.ac.il"
+rate_limit: 0.4
+directories:
+  - "/catalog/%D7%AA%D7%95%D7%90%D7%A8%20%D7%A8%D7%90%D7%A9%D7%95%D7%9F"
+retries: 3

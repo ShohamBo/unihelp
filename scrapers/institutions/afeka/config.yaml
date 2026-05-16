@@ -1,0 +1,5 @@
+base_url: "https://www.afeka.ac.il"
+rate_limit: 0.5
+directories:
+  - "/academic-departments/bsc/"
+retries: 3

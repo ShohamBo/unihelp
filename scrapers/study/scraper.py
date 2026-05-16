@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
-from ..abstract_scraper import AbstractScraper
+from ..playwright_scraper import PlaywrightAbstractScraper
 from ..models import PageContext, Degree, Course, Review
 from .consts import (
     SOURCE_SLUG, BASE_URL, MIN_REVIEW_LENGTH, INSTITUTION_NAME_MAP,
@@ -11,11 +11,10 @@ from .consts import (
 )
 
 
-class StudyScraper(AbstractScraper):
+class StudyScraper(PlaywrightAbstractScraper):
     """
-    Scrapes student reviews from study.co.il.
+    Scrapes student reviews from study.co.il via Playwright (Cloudflare bypass).
     Directory (/) → program pages → Review objects per page.
-    degree_id is set to the slugified program name for later resolution by ProgramMapper.
     """
 
     source_slug = SOURCE_SLUG

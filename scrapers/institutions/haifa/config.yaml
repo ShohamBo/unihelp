@@ -1,0 +1,5 @@
+base_url: "https://admissions.haifa.ac.il"
+rate_limit: 0.4
+directories:
+  - "/bachelor/"
+retries: 3

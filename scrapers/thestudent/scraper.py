@@ -1,35 +1,53 @@
+import re
 from bs4 import BeautifulSoup
 
 from ..abstract_scraper import AbstractScraper
 from ..models import PageContext, Degree, Course, Review
 from .consts import (
-    SOURCE_SLUG, BASE_URL, DEGREES_INDEX, MIN_REVIEW_LENGTH,
+    SOURCE_SLUG, BASE_URL, MIN_REVIEW_LENGTH,
     REVIEW_SELECTORS, REVIEW_TEXT_SELECTORS, REVIEW_DATE_SELECTORS,
     REVIEW_AUTHOR_SELECTORS, PROGRAM_NAME_SELECTORS,
 )
+
+_CATEGORY_LINK_RE = re.compile(r"^/c\d+_")
+_DEGREE_LINK_RE = re.compile(r"/Degrees/Degree_\d+", re.IGNORECASE)
 
 
 class TheStudentScraper(AbstractScraper):
     """
     Scrapes student reviews from thestudent.co.il.
-    Directory (/Degrees/) → degree pages → Review objects per page.
-    degree_id is set to the slugified program name for later resolution by ProgramMapper.
+    3-level: /Categories → /c[N]_[name] category pages → /Degrees/Degree_[N].html
+    get_subpages() does both hops so the base scrape_directory() sees only leaf URLs.
     """
 
     source_slug = SOURCE_SLUG
 
     async def get_subpages(self, soup: BeautifulSoup, directory_url: str) -> list[str]:
         seen: set[str] = set()
-        urls: list[str] = []
+        degree_urls: list[str] = []
+
+        category_urls: list[str] = []
         for link in soup.select("a[href]"):
             href = link.get("href", "")
-            if "/Degrees/" not in href or href.strip("/") == DEGREES_INDEX.strip("/"):
-                continue
-            full = href if href.startswith("http") else f"{BASE_URL}{href}"
-            if full not in seen:
-                seen.add(full)
-                urls.append(full)
-        return urls
+            if _CATEGORY_LINK_RE.match(href):
+                full = href if href.startswith("http") else f"{BASE_URL}{href}"
+                if full not in seen:
+                    seen.add(full)
+                    category_urls.append(full)
+
+        for cat_url in category_urls:
+            try:
+                cat_soup = await self.get_page_soup(cat_url)
+                for link in cat_soup.select("a[href]"):
+                    href = link.get("href", "")
+                    if _DEGREE_LINK_RE.search(href):
+                        full = href if href.startswith("http") else f"{BASE_URL}{href}"
+                        if full not in seen:
+                            seen.add(full)
+                            degree_urls.append(full)
+            except Exception:
+                self.logger.warning(f"Failed to fetch category page {cat_url}")
+        return degree_urls
 
     async def parse_page(self, ctx: PageContext) -> list[Degree | Course | Review]:
         soup: BeautifulSoup = ctx.html_soup

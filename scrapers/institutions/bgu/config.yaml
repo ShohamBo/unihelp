@@ -1,0 +1,5 @@
+base_url: "https://www.bgu.ac.il"
+rate_limit: 0.4
+directories:
+  - "/welcome/ba/catalog/"
+retries: 3

@@ -1,5 +1,5 @@
 base_url: "https://www.thestudent.co.il"
-rate_limit: 0.25
+rate_limit: 0.5
 directories:
-  - "/Degrees/"
+  - "/Categories"
 retries: 3
