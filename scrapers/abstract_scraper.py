@@ -1,9 +1,10 @@
 import asyncio
 import hashlib
+import os
 import re
 import sys
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -13,6 +14,7 @@ from fake_useragent import UserAgent
 
 from .common.async_request_client import AsyncRequestClient, ClientErrorException, RequestType
 from .common.logger_manager import scraper_logger
+from .db_tool import BeautifulTools
 from .proxy import get_default_proxy
 from .consts import SCRAPER_CONFIG_FILENAME, BS4_HTML_PARSER, DEGREE_LEVEL_NORMALIZER
 from .models import ScraperConfig, PageContext, ScraperResult, Degree, Course, Review
@@ -55,9 +57,7 @@ class AbstractScraper(ABC):
             logger=self.logger,
             retries=self.scraper_config.retries,
         )
-        # Import here to avoid circular import; django_client imports models
-        from .django_client import DjangoApiClient
-        self._db_client = DjangoApiClient()
+        self._db = BeautifulTools(db_url=os.environ["DATABASE_URL"], logger=self.logger)
 
     # ------------------------------------------------------------------ config
 
@@ -220,7 +220,143 @@ class AbstractScraper(ABC):
         return result
 
     async def _persist_result(self, result: ScraperResult) -> None:
-        await self._db_client.save_scraped_result(result)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, self._persist_sync, result)
+
+    def _persist_sync(self, result: ScraperResult) -> None:
+        """Write ScraperResult directly to the Django-managed PostgreSQL tables."""
+        now = datetime.now(timezone.utc)
+
+        # 1. Resolve institution slugs → integer PKs (fail fast on missing slug)
+        institution_slugs = (
+            {d.institution_slug for d in result.degrees}
+            | {c.institution_slug for c in result.courses}
+        )
+        inst_id_map: dict[str, int] = {}
+        for slug in institution_slugs:
+            iid = self._db.get_id_by_slug("institutions_institution", slug)
+            if iid is None:
+                raise RuntimeError(
+                    f"Institution {slug!r} not found in DB — seed it before running scrapers."
+                )
+            inst_id_map[slug] = iid
+
+        # 2. Resolve review source slugs → integer PKs (auto-create stub rows)
+        source_id_map: dict[str, int] = {
+            slug: self._db.get_or_create_review_source(slug)
+            for slug in {r.source_slug for r in result.reviews}
+        }
+
+        # 3. Upsert programs_program
+        program_rows = []
+        for d in result.degrees:
+            inst_id = inst_id_map[d.institution_slug]
+            program_rows.append({
+                "institution_id": inst_id,
+                "faculty_id": self._db.get_faculty_id(inst_id, d.faculty_slug),
+                "slug": d.slug,
+                "name_he": d.name_he,
+                "name_en": d.name_en,
+                "degree_level": d.degree_level,
+                "duration_years": d.duration_years,
+                "total_credits": d.total_credits,
+                "is_dual_major": d.is_dual_major,
+                "is_extended": d.is_extended,
+                "description_he": d.description_he,
+                "canonical_url": d.canonical_url,
+                "last_scraped_at": now,
+                "metadata": d.metadata,
+            })
+        self._db.upsert_many_dicts(
+            "programs_program",
+            program_rows,
+            conflict_cols=["institution_id", "slug"],
+            update_fields=[
+                "faculty_id", "name_he", "name_en", "degree_level", "duration_years",
+                "total_credits", "is_dual_major", "is_extended", "description_he",
+                "canonical_url", "last_scraped_at", "metadata",
+            ],
+        )
+
+        # 4. Build slug → program_id map for course FK resolution
+        program_id_map: dict[str, int] = {}
+        for d in result.degrees:
+            pid = self._db.get_program_id(inst_id_map[d.institution_slug], d.slug)
+            if pid:
+                program_id_map[d.slug] = pid
+
+        # 5. Upsert programs_course — partial unique constraint requires constraint name
+        course_rows = []
+        for c in result.courses:
+            program_id = program_id_map.get(c.degree_id)
+            if program_id is None:
+                self.logger.warning(f"Course skipped — degree_id {c.degree_id!r} not found in program_id_map")
+                continue
+            inst_id = inst_id_map.get(c.institution_slug)
+            if inst_id is None:
+                continue
+            course_rows.append({
+                "program_id": program_id,
+                "institution_id": inst_id,
+                "name_he": c.name_he,
+                "name_en": c.name_en,
+                "course_code": c.course_code,
+                "credits": c.credits,
+                "semester": c.semester,
+                "is_mandatory": c.is_mandatory,
+                "description_he": c.description_he,
+                "metadata": c.metadata,
+            })
+        # Split on course_code presence — the DB constraint is partial (course_code > '')
+        coded = [r for r in course_rows if r["course_code"]]
+        uncoded = [r for r in course_rows if not r["course_code"]]
+        if coded:
+            self._db.upsert_many_dicts(
+                "programs_course",
+                coded,
+                conflict_cols=[],
+                conflict_constraint="unique_course_program_code",
+                update_fields=["name_he", "name_en", "credits", "semester", "is_mandatory",
+                               "description_he", "metadata"],
+            )
+        if uncoded:
+            # No unique constraint for courses without a code — insert and ignore duplicates
+            self._db.upsert_many_dicts(
+                "programs_course",
+                uncoded,
+                conflict_cols=["program_id", "name_he"],
+                update_fields=["credits", "semester", "is_mandatory", "description_he", "metadata"],
+            )
+
+        # 6. Upsert reviews_reviewsnippet
+        # scraped_at is auto_now_add in Django (no DB default) — must supply it explicitly
+        review_rows = []
+        for r in result.reviews:
+            source_id = source_id_map.get(r.source_slug)
+            if source_id is None:
+                continue
+            review_rows.append({
+                "source_id": source_id,
+                "source_url": r.source_url,
+                "external_id": r.source_id,
+                "raw_text": r.raw_text,
+                "language": r.language,
+                "posted_at": r.posted_at,
+                "scraped_at": now,
+                "author_handle": r.author_handle,
+                "metadata": r.metadata,
+            })
+        self._db.upsert_many_dicts(
+            "reviews_reviewsnippet",
+            review_rows,
+            conflict_cols=["source_id", "external_id"],
+            update_fields=["raw_text", "language", "posted_at", "author_handle", "metadata"],
+        )
+
+        self.logger.info(
+            f"[{self.source_slug}] persisted: "
+            f"{len(program_rows)} programs, {len(course_rows)} courses, {len(review_rows)} reviews"
+        )
 
     async def run(self) -> ScraperResult:
         """Entry point: scrape all sources then persist to Django. Returns ScraperResult."""
