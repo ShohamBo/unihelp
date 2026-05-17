@@ -23,7 +23,6 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "pgvector.django",
     "core",
-    "institutions",
     "programs",
     "reviews",
     "leads",
@@ -68,11 +67,20 @@ DATABASES = {
         "PASSWORD": config("DB_PASSWORD", default="maslul_dev"),
         "HOST": config("DB_HOST", default="localhost"),
         "PORT": config("DB_PORT", default="5432"),
-        "OPTIONS": {
-            "options": "-c client_encoding=UTF8",
-        },
-    }
+        "OPTIONS": {"options": "-c client_encoding=UTF8"},
+    },
+    "data": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("DATA_DB_NAME", default="maslul_data"),
+        "USER": config("DB_USER", default="maslul"),
+        "PASSWORD": config("DB_PASSWORD", default="maslul_dev"),
+        "HOST": config("DB_HOST", default="localhost"),
+        "PORT": config("DB_PORT", default="5432"),
+        "OPTIONS": {"options": "-c client_encoding=UTF8"},
+    },
 }
+
+DATABASE_ROUTERS = ["maslul.db_router.MaslulRouter"]
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

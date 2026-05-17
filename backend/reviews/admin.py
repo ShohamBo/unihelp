@@ -10,9 +10,9 @@ class ReviewSourceAdmin(admin.ModelAdmin):
 
 @admin.register(ReviewSnippet)
 class ReviewSnippetAdmin(admin.ModelAdmin):
-    list_display = ["source", "source_id", "language", "posted_at", "scraped_at"]
-    list_filter = ["source", "language"]
-    search_fields = ["raw_text", "source_id"]
+    list_display = ["source_slug", "external_id", "language", "posted_at", "scraped_at"]
+    list_filter = ["source_slug", "language"]
+    search_fields = ["raw_text", "external_id"]
     date_hierarchy = "scraped_at"
 
 

@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                 ('utm_data', models.JSONField(default=dict)),
                 ('status', models.CharField(choices=[('new', 'New'), ('contacted', 'Contacted'), ('rejected', 'Rejected')], default='new', max_length=20)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('program', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='leads', to='programs.program')),
+                ('program', models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='leads', to='programs.program')),
             ],
             options={
                 'verbose_name': 'ליד',

@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from django.db import models
 
+from core.institutions import get_name_he, get_city
 from programs.models import Program, AdmissionRequirement
 from reviews.models import ProgramSummary, ReviewSnippet
 
@@ -22,16 +22,13 @@ class ProgramSummarySerializer(serializers.ModelSerializer):
 
 
 class SnippetSerializer(serializers.ModelSerializer):
-    source_name = serializers.CharField(source='source.name')
-
     class Meta:
         model = ReviewSnippet
-        fields = ['id', 'raw_text', 'posted_at', 'language', 'metadata', 'source_name']
+        fields = ['id', 'raw_text', 'posted_at', 'language', 'metadata', 'source_slug']
 
 
 class ProgramListSerializer(serializers.ModelSerializer):
-    institution_slug = serializers.CharField(source='institution.slug')
-    institution_name_he = serializers.CharField(source='institution.name_he')
+    institution_name_he = serializers.SerializerMethodField()
 
     class Meta:
         model = Program
@@ -41,11 +38,13 @@ class ProgramListSerializer(serializers.ModelSerializer):
             'institution_slug', 'institution_name_he',
         ]
 
+    def get_institution_name_he(self, obj):
+        return get_name_he(obj.institution_slug)
+
 
 class ProgramDetailSerializer(serializers.ModelSerializer):
-    institution_slug = serializers.CharField(source='institution.slug')
-    institution_name_he = serializers.CharField(source='institution.name_he')
-    institution_city = serializers.CharField(source='institution.city')
+    institution_name_he = serializers.SerializerMethodField()
+    institution_city = serializers.SerializerMethodField()
     faculty_name_he = serializers.SerializerMethodField()
     admission = AdmissionSerializer(read_only=True)
     summary = ProgramSummarySerializer(read_only=True)
@@ -61,15 +60,21 @@ class ProgramDetailSerializer(serializers.ModelSerializer):
             'faculty_name_he', 'admission', 'summary', 'top_snippets',
         ]
 
+    def get_institution_name_he(self, obj):
+        return get_name_he(obj.institution_slug)
+
+    def get_institution_city(self, obj):
+        return get_city(obj.institution_slug)
+
     def get_faculty_name_he(self, obj):
-        return obj.faculty.name_he if obj.faculty else None
+        return obj.faculty_slug or None
 
     def get_top_snippets(self, obj):
         from reviews.models import ProgramReviewLink
         links = (
             ProgramReviewLink.objects
             .filter(program=obj)
-            .select_related('snippet', 'snippet__source')
+            .select_related('snippet')
             .order_by('-confidence')[:5]
         )
         return SnippetSerializer([link.snippet for link in links], many=True).data

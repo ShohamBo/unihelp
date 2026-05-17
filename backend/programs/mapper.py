@@ -117,13 +117,13 @@ class ProgramMapper:
         self._corpus.clear()
         self._programs.clear()
 
-        for alias in ProgramAlias.objects.select_related("program__institution").iterator():
+        for alias in ProgramAlias.objects.select_related("program").iterator():
             norm = normalize_text(alias.alias_text)
             self._alias_map.setdefault(norm, alias.program_id)
             self._corpus.append((norm, alias.program_id))
             self._programs.setdefault(alias.program_id, alias.program)
 
-        for prog in Program.objects.select_related("institution").iterator():
+        for prog in Program.objects.iterator():
             self._programs.setdefault(prog.id, prog)
             for text in filter(None, [prog.name_he, prog.name_en]):
                 norm = normalize_text(text)
@@ -162,7 +162,7 @@ class ProgramMapper:
         if not inst:
             return True
         prog = self._programs.get(program_id)
-        return prog is None or getattr(getattr(prog, "institution", None), "slug", "") == inst
+        return prog is None or getattr(prog, "institution_slug", "") == inst
 
     def _tier1(self, normalized: str, inst: str) -> MapResult | None:
         pid = self._alias_map.get(normalized)
@@ -228,7 +228,7 @@ class ProgramMapper:
                     "id": pid,
                     "name_he": prog.name_he,
                     "name_en": getattr(prog, "name_en", ""),
-                    "institution": getattr(getattr(prog, "institution", None), "slug", ""),
+                    "institution": getattr(prog, "institution_slug", ""),
                     "degree_level": getattr(prog, "degree_level", ""),
                 })
             if len(out) >= LLM_CANDIDATE_LIMIT:

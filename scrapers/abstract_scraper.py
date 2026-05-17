@@ -226,34 +226,13 @@ class AbstractScraper(ABC):
     def _persist_sync(self, result: ScraperResult) -> None:
         """Write ScraperResult directly to the Django-managed PostgreSQL tables."""
         now = datetime.now(timezone.utc)
-
-        # 1. Resolve institution slugs → integer PKs (fail fast on missing slug)
-        institution_slugs = (
-            {d.institution_slug for d in result.degrees}
-            | {c.institution_slug for c in result.courses}
-        )
-        inst_id_map: dict[str, int] = {}
-        for slug in institution_slugs:
-            iid = self._db.get_id_by_slug("institutions_institution", slug)
-            if iid is None:
-                raise RuntimeError(
-                    f"Institution {slug!r} not found in DB — seed it before running scrapers."
-                )
-            inst_id_map[slug] = iid
-
-        # 2. Resolve review source slugs → integer PKs (auto-create stub rows)
-        source_id_map: dict[str, int] = {
-            slug: self._db.get_or_create_review_source(slug)
-            for slug in {r.source_slug for r in result.reviews}
-        }
-
-        # 3. Upsert programs_program
+        db = self._db
+        # 1. Upsert programs_program — institution_slug and faculty_slug stored directly
         program_rows = []
         for d in result.degrees:
-            inst_id = inst_id_map[d.institution_slug]
             program_rows.append({
-                "institution_id": inst_id,
-                "faculty_id": self._db.get_faculty_id(inst_id, d.faculty_slug),
+                "institution_slug": d.institution_slug,
+                "faculty_slug": d.faculty_slug or "",
                 "slug": d.slug,
                 "name_he": d.name_he,
                 "name_en": d.name_en,
@@ -267,37 +246,34 @@ class AbstractScraper(ABC):
                 "last_scraped_at": now,
                 "metadata": d.metadata,
             })
-        self._db.upsert_many_dicts(
+        db.upsert_many_dicts(
             "programs_program",
             program_rows,
-            conflict_cols=["institution_id", "slug"],
+            conflict_cols=["institution_slug", "slug"],
             update_fields=[
-                "faculty_id", "name_he", "name_en", "degree_level", "duration_years",
+                "faculty_slug", "name_he", "name_en", "degree_level", "duration_years",
                 "total_credits", "is_dual_major", "is_extended", "description_he",
                 "canonical_url", "last_scraped_at", "metadata",
             ],
         )
 
-        # 4. Build slug → program_id map for course FK resolution
-        program_id_map: dict[str, int] = {}
+        # 2. Build (institution_slug, degree_slug) → program_id for course FK
+        program_id_map: dict[tuple[str, str], int] = {}
         for d in result.degrees:
-            pid = self._db.get_program_id(inst_id_map[d.institution_slug], d.slug)
+            pid = db.get_program_id_by_slugs(d.institution_slug, d.slug)
             if pid:
-                program_id_map[d.slug] = pid
+                program_id_map[(d.institution_slug, d.slug)] = pid
 
-        # 5. Upsert programs_course — partial unique constraint requires constraint name
+        # 3. Upsert programs_course
         course_rows = []
         for c in result.courses:
-            program_id = program_id_map.get(c.degree_id)
+            program_id = program_id_map.get((c.institution_slug, c.degree_id))
             if program_id is None:
-                self.logger.warning(f"Course skipped — degree_id {c.degree_id!r} not found in program_id_map")
-                continue
-            inst_id = inst_id_map.get(c.institution_slug)
-            if inst_id is None:
+                self.logger.warning(f"Course skipped — ({c.institution_slug!r}, {c.degree_id!r}) not in program_id_map")
                 continue
             course_rows.append({
                 "program_id": program_id,
-                "institution_id": inst_id,
+                "institution_slug": c.institution_slug,
                 "name_he": c.name_he,
                 "name_en": c.name_en,
                 "course_code": c.course_code,
@@ -307,36 +283,31 @@ class AbstractScraper(ABC):
                 "description_he": c.description_he,
                 "metadata": c.metadata,
             })
-        # Split on course_code presence — the DB constraint is partial (course_code > '')
         coded = [r for r in course_rows if r["course_code"]]
         uncoded = [r for r in course_rows if not r["course_code"]]
         if coded:
-            self._db.upsert_many_dicts(
+            db.upsert_many_dicts(
                 "programs_course",
                 coded,
-                conflict_cols=[],
-                conflict_constraint="unique_course_program_code",
+                conflict_cols=["program_id", "course_code"],
+                conflict_where="course_code > ''",
                 update_fields=["name_he", "name_en", "credits", "semester", "is_mandatory",
                                "description_he", "metadata"],
             )
         if uncoded:
-            # No unique constraint for courses without a code — insert and ignore duplicates
-            self._db.upsert_many_dicts(
+            db.upsert_many_dicts(
                 "programs_course",
                 uncoded,
                 conflict_cols=["program_id", "name_he"],
                 update_fields=["credits", "semester", "is_mandatory", "description_he", "metadata"],
             )
 
-        # 6. Upsert reviews_reviewsnippet
+        # 4. Upsert reviews_reviewsnippet — source_slug stored directly, no FK lookup
         # scraped_at is auto_now_add in Django (no DB default) — must supply it explicitly
         review_rows = []
         for r in result.reviews:
-            source_id = source_id_map.get(r.source_slug)
-            if source_id is None:
-                continue
             review_rows.append({
-                "source_id": source_id,
+                "source_slug": r.source_slug,
                 "source_url": r.source_url,
                 "external_id": r.source_id,
                 "raw_text": r.raw_text,
@@ -346,10 +317,10 @@ class AbstractScraper(ABC):
                 "author_handle": r.author_handle,
                 "metadata": r.metadata,
             })
-        self._db.upsert_many_dicts(
+        db.upsert_many_dicts(
             "reviews_reviewsnippet",
             review_rows,
-            conflict_cols=["source_id", "external_id"],
+            conflict_cols=["source_slug", "external_id"],
             update_fields=["raw_text", "language", "posted_at", "author_handle", "metadata"],
         )
 

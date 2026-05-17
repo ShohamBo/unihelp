@@ -7,7 +7,6 @@ urlpatterns = [
     path("api/admin/", include("programs.urls")),
     path("api/programs/", include("programs.api_urls")),
     path("api/reviews/", include("reviews.urls")),
-    path("api/institutions/", include("institutions.urls")),
     path("api/leads/", include("leads.urls")),
     path("social/", include("social_django.urls", namespace="social")),
 ]

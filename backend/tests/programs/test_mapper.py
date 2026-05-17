@@ -20,7 +20,6 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from institutions.models import Institution
 from programs.mapper import MapResult, ProgramMapper
 from programs.models import Program, ProgramAlias
 from programs.normalizer import normalize_text, detect_institution_slug, strip_institution_refs
@@ -109,23 +108,14 @@ class NormalizerTests(TestCase):
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _make_institution(slug: str, name_he: str) -> Institution:
-    return Institution.objects.get_or_create(
-        slug=slug,
-        defaults={
-            "name_he": name_he,
-            "name_en": slug.upper(),
-            "type": "university",
-            "city": "Israel",
-            "website": f"https://{slug}.ac.il",
-        },
-    )[0]
+def _make_institution(slug: str, name_he: str) -> str:
+    return slug
 
 
-def _make_program(institution: Institution, name_he: str, degree_level: str = "ba") -> Program:
+def _make_program(institution_slug: str, name_he: str, degree_level: str = "ba") -> Program:
     slug = name_he[:50].replace(" ", "-").lower()
     return Program.objects.get_or_create(
-        institution=institution,
+        institution_slug=institution_slug,
         slug=slug,
         defaults={
             "name_he": name_he,

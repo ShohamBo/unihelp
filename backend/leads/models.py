@@ -3,7 +3,8 @@ from django.db import models
 
 class Lead(models.Model):
     program = models.ForeignKey(
-        "programs.Program", on_delete=models.SET_NULL, null=True, blank=True, related_name="leads"
+        "programs.Program", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="leads", db_constraint=False,
     )
     full_name = models.CharField(max_length=200)
     email = models.EmailField()

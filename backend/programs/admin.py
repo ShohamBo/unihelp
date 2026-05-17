@@ -4,10 +4,9 @@ from .models import Program, ProgramVersion, AdmissionRequirement, ProgramAlias
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
-    list_display = ["name_he", "institution", "faculty", "degree_level", "duration_years", "is_dual_major"]
-    list_filter = ["degree_level", "institution", "is_dual_major", "is_extended"]
-    search_fields = ["name_he", "name_en", "slug"]
-    raw_id_fields = ["institution", "faculty"]
+    list_display = ["name_he", "institution_slug", "faculty_slug", "degree_level", "duration_years", "is_dual_major"]
+    list_filter = ["degree_level", "institution_slug", "is_dual_major", "is_extended"]
+    search_fields = ["name_he", "name_en", "slug", "institution_slug"]
 
 
 @admin.register(ProgramVersion)

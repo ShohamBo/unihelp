@@ -2,12 +2,8 @@ from django.db import models
 
 
 class Program(models.Model):
-    institution = models.ForeignKey(
-        "institutions.Institution", on_delete=models.CASCADE, related_name="programs"
-    )
-    faculty = models.ForeignKey(
-        "institutions.Faculty", on_delete=models.SET_NULL, null=True, blank=True, related_name="programs"
-    )
+    institution_slug = models.SlugField(max_length=100, db_index=True)
+    faculty_slug = models.SlugField(max_length=100, blank=True)
     slug = models.SlugField()
     name_he = models.CharField(max_length=300)
     name_en = models.CharField(max_length=300, blank=True)
@@ -26,14 +22,14 @@ class Program(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["institution", "slug"], name="unique_program_institution_slug")
+            models.UniqueConstraint(fields=["institution_slug", "slug"], name="unique_program_institution_slug")
         ]
-        indexes = [models.Index(fields=["institution", "degree_level"])]
+        indexes = [models.Index(fields=["institution_slug", "degree_level"])]
         verbose_name = "תוכנית"
         verbose_name_plural = "תוכניות"
 
     def __str__(self):
-        return f"{self.institution.slug} — {self.name_he} ({self.degree_level})"
+        return f"{self.institution_slug} — {self.name_he} ({self.degree_level})"
 
 
 class ProgramVersion(models.Model):
@@ -71,12 +67,8 @@ class AdmissionRequirement(models.Model):
 
 
 class Course(models.Model):
-    """A single course within a degree program."""
-
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name="courses", null=True, blank=True)
-    institution = models.ForeignKey(
-        "institutions.Institution", on_delete=models.CASCADE, related_name="courses"
-    )
+    institution_slug = models.SlugField(max_length=100)
     name_he = models.CharField(max_length=300)
     name_en = models.CharField(max_length=300, blank=True)
     course_code = models.CharField(max_length=50, blank=True)
@@ -88,7 +80,6 @@ class Course(models.Model):
 
     class Meta:
         constraints = [
-            # Only enforce uniqueness when course_code is set — avoids conflicts on unnamed courses
             models.UniqueConstraint(
                 fields=["program", "course_code"],
                 condition=models.Q(course_code__gt=""),

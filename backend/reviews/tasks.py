@@ -102,7 +102,7 @@ def regenerate_program_summary(self, program_id: int):
     from reviews.models import ProgramReviewLink, ProgramSummary
 
     try:
-        program = Program.objects.select_related("institution").get(id=program_id)
+        program = Program.objects.get(id=program_id)
     except Program.DoesNotExist:
         return
 
@@ -131,7 +131,7 @@ def regenerate_program_summary(self, program_id: int):
             messages=[{
                 "role": "user",
                 "content": (
-                    f'Summarize student reviews for "{program.name_he}" at {program.institution.name_he}.\n\n'
+                    f'Summarize student reviews for "{program.name_he}" at {program.institution_slug}.\n\n'
                     "Based ONLY on the reviews below, return a JSON object with:\n"
                     '- "summary_he": balanced ~200-word summary in Hebrew\n'
                     '- "pros_he": list of exactly 5 pros in Hebrew (one sentence each)\n'

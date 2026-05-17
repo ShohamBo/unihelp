@@ -31,7 +31,7 @@ class ReviewSource(models.Model):
 
 
 class ReviewSnippet(models.Model):
-    source = models.ForeignKey(ReviewSource, on_delete=models.CASCADE, related_name="snippets")
+    source_slug = models.SlugField(max_length=100)
     source_url = models.URLField()
     external_id = models.CharField(max_length=300)  # source's native ID for dedup
     raw_text = models.TextField()
@@ -43,7 +43,7 @@ class ReviewSnippet(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["source", "external_id"], name="unique_snippet_source_external_id")
+            models.UniqueConstraint(fields=["source_slug", "external_id"], name="unique_snippet_source_external_id")
         ]
         indexes = [
             models.Index(fields=["posted_at"]),
@@ -53,7 +53,7 @@ class ReviewSnippet(models.Model):
         verbose_name_plural = "קטעי ביקורת"
 
     def __str__(self):
-        return f"{self.source.name} — {self.external_id}"
+        return f"{self.source_slug} — {self.external_id}"
 
 
 class ProgramReviewLink(models.Model):

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from programs.views import ScraperTokenPermission
-from reviews.models import ReviewSnippet, ReviewSource, ProgramReviewLink
+from reviews.models import ReviewSnippet, ProgramReviewLink
 
 logger = logging.getLogger("maslul.reviews.api")
 
@@ -26,25 +26,16 @@ class ReviewSnippetBulkView(APIView):
         from core.db_utils import bulk_upsert
         from django.utils.dateparse import parse_datetime
 
-        # Pre-fetch / auto-create all ReviewSource rows in batch
-        source_slugs = {i.get("source_slug", "").strip() for i in items if i.get("source_slug", "").strip()}
-        sources = {}
-        for slug in source_slugs:
-            src, _ = ReviewSource.objects.get_or_create(
-                name=slug, defaults={"base_url": "", "is_active": True}
-            )
-            sources[slug] = src
-
         objs = []
         skipped = 0
         for item in items:
-            slug = item.get("source_slug", "").strip()
+            source_slug = item.get("source_slug", "").strip()
             ext_id = item.get("source_id", "").strip()
-            if not slug or not ext_id or slug not in sources:
+            if not source_slug or not ext_id:
                 skipped += 1
                 continue
             objs.append(ReviewSnippet(
-                source=sources[slug],
+                source_slug=source_slug,
                 external_id=ext_id,
                 source_url=item.get("source_url", ""),
                 raw_text=item.get("raw_text", ""),
@@ -57,7 +48,7 @@ class ReviewSnippetBulkView(APIView):
         created, updated = bulk_upsert(
             ReviewSnippet,
             objs,
-            unique_fields=["source", "external_id"],
+            unique_fields=["source_slug", "external_id"],
             update_fields=["source_url", "raw_text", "language", "posted_at", "author_handle", "metadata"],
         )
 
@@ -76,7 +67,7 @@ class ReviewSnippetBulkView(APIView):
             if not slug or not ext_id:
                 continue
             snippet = ReviewSnippet.objects.filter(
-                source__name=slug, external_id=ext_id
+                source_slug=slug, external_id=ext_id
             ).first()
             if not snippet:
                 continue
